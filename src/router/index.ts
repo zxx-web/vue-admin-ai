@@ -71,5 +71,4 @@ router.beforeEach((to) => {
 	return true;
 });
 
-const a = 1;
 export default router;
