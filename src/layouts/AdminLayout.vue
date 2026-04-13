@@ -2,22 +2,31 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ArrowDown, Close, Document, Grid, Odometer, User } from '@element-plus/icons-vue';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 import { ROLE_LABELS } from '@/constants/role';
 import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
 import { useTabsStore } from '@/stores/tabs';
+import { useThemeStore } from '@/stores/theme';
 
 const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 const auth = useAuthStore();
 const tabsStore = useTabsStore();
+const theme = useThemeStore();
 
 const topNavScrollRef = ref<HTMLElement | null>(null);
 
 const activeMenu = computed(() => route.path);
 
 const roleText = computed(() => (auth.role ? ROLE_LABELS[auth.role] : ''));
+
+const menuTheme = computed(() => ({
+	backgroundColor: theme.isDark ? '#111827' : '#304156',
+	textColor: theme.isDark ? '#cbd5e1' : '#bfcbd9',
+	activeTextColor: theme.isDark ? '#60a5fa' : '#409eff',
+}));
 
 const breadcrumbs = computed(() => {
 	const matched = route.matched.filter((r) => r.meta?.title);
@@ -95,15 +104,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-	<el-container class="admin-layout">
-		<el-aside width="220px" class="aside">
-			<div class="logo">{{ appStore.title }}</div>
+	<el-container
+		class="admin-layout bg-slate-100 text-slate-900 transition-colors dark:bg-slate-900 dark:text-slate-100"
+	>
+		<el-aside width="220px" class="aside" :class="theme.isDark ? 'bg-slate-900' : 'bg-[#304156]'">
+			<div class="logo" :class="theme.isDark ? 'bg-slate-900' : 'bg-[#304156]'">
+				{{ appStore.title }}
+			</div>
 			<el-menu
 				:default-active="activeMenu"
 				router
-				background-color="#304156"
-				text-color="#bfcbd9"
-				active-text-color="#409eff"
+				:background-color="menuTheme.backgroundColor"
+				:text-color="menuTheme.textColor"
+				:active-text-color="menuTheme.activeTextColor"
 			>
 				<el-menu-item index="/dashboard">
 					<el-icon><Odometer /></el-icon>
@@ -125,16 +138,17 @@ onBeforeUnmount(() => {
 			</el-menu>
 		</el-aside>
 
-		<el-container direction="vertical" class="main-area">
-			<el-header class="header" height="56px">
+		<el-container direction="vertical" class="main-area dark:!bg-slate-950">
+			<el-header class="header dark:!border-slate-700 dark:!bg-slate-900" height="56px">
 				<el-breadcrumb separator="/">
 					<el-breadcrumb-item v-for="(b, i) in breadcrumbs" :key="i" :to="b.to">
 						{{ b.title }}
 					</el-breadcrumb-item>
 				</el-breadcrumb>
 				<div class="header-right">
+					<ThemeToggle />
 					<el-dropdown trigger="click" @command="onUserCommand">
-						<span class="user-trigger">
+						<span class="user-trigger dark:!text-slate-100">
 							<el-icon class="user-icon"><User /></el-icon>
 							<span class="user-meta">
 								<span class="user-name">{{ auth.username }}</span>
@@ -153,12 +167,12 @@ onBeforeUnmount(() => {
 				</div>
 			</el-header>
 
-			<div ref="topNavScrollRef" class="top-nav-scroll">
+			<div ref="topNavScrollRef" class="top-nav-scroll dark:!border-slate-700 dark:!bg-slate-900">
 				<div class="top-nav-track">
 					<div
 						v-for="t in tabsStore.visited"
 						:key="t.path"
-						class="nav-chip"
+						class="nav-chip dark:!border-slate-700 dark:!bg-slate-800 dark:!text-slate-300"
 						:class="{ 'is-active': isTabActive(t.path) }"
 					>
 						<router-link :to="t.fullPath" class="nav-chip-link">
@@ -177,7 +191,7 @@ onBeforeUnmount(() => {
 				</div>
 			</div>
 
-			<el-main class="content">
+			<el-main class="content dark:!bg-slate-950">
 				<router-view v-slot="{ Component }">
 					<keep-alive :include="['DashboardView', 'DemoView', 'SamplePageView']">
 						<component :is="Component" />
@@ -224,6 +238,25 @@ onBeforeUnmount(() => {
 	overflow-x: hidden;
 }
 
+/* :global(html.dark) .aside :deep(.el-menu),
+:global(html.dark) .aside :deep(.el-sub-menu .el-menu) {
+	background-color: #111827 !important;
+}
+
+:global(html.dark) .aside :deep(.el-menu-item),
+:global(html.dark) .aside :deep(.el-sub-menu__title) {
+	background-color: #111827 !important;
+}
+
+:global(html.dark) .aside :deep(.el-menu-item:hover),
+:global(html.dark) .aside :deep(.el-sub-menu__title:hover) {
+	background-color: #1f2937 !important;
+}
+
+:global(html.dark) .aside :deep(.el-menu-item.is-active) {
+	background-color: #1f2937 !important;
+} */
+
 .main-area {
 	flex: 1;
 	min-width: 0;
@@ -246,6 +279,9 @@ onBeforeUnmount(() => {
 }
 
 .header-right {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
 	flex-shrink: 0;
 }
 

@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { FormInstance } from 'element-plus';
 import { ElMessage } from 'element-plus';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
@@ -51,10 +52,18 @@ async function onSubmit() {
 </script>
 
 <template>
-	<div class="login-page">
-		<el-card class="login-card" shadow="hover">
+	<div
+		class="login-page relative bg-gradient-to-br from-slate-100 via-slate-200 to-slate-100 text-slate-900 transition-colors dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100"
+	>
+		<div class="absolute right-4 top-4 z-10">
+			<ThemeToggle />
+		</div>
+		<el-card
+			class="login-card !bg-white/95 dark:!border-slate-700 dark:!bg-slate-900/95"
+			shadow="hover"
+		>
 			<template #header>
-				<span class="title">登录</span>
+				<span class="title text-slate-900 dark:text-slate-100">登录</span>
 			</template>
 			<el-form
 				ref="formRef"
@@ -83,7 +92,7 @@ async function onSubmit() {
 					</el-button>
 				</el-form-item>
 			</el-form>
-			<p v-if="mockHint" class="hint">{{ mockHint }}</p>
+			<p v-if="mockHint" class="hint text-slate-600 dark:text-slate-300">{{ mockHint }}</p>
 		</el-card>
 	</div>
 </template>
@@ -95,7 +104,6 @@ async function onSubmit() {
 	align-items: center;
 	justify-content: center;
 	padding: 24px;
-	background: linear-gradient(160deg, #f0f4ff 0%, #e8eef9 50%, #f5f7fa 100%);
 }
 
 .login-card {
@@ -115,7 +123,6 @@ async function onSubmit() {
 .hint {
 	margin: 0;
 	font-size: 13px;
-	color: var(--el-text-color-secondary);
 	line-height: 1.5;
 }
 </style>
