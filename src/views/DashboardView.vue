@@ -108,6 +108,34 @@ async function pingApi() {
 			</el-col>
 		</el-row>
 
+		<div
+			class="mb-4 rounded-xl border border-slate-200 bg-gradient-to-r from-indigo-50 via-sky-50 to-cyan-50 p-4 shadow-sm"
+		>
+			<div class="flex flex-wrap items-center justify-between gap-3">
+				<div>
+					<p class="text-xs font-semibold tracking-wide text-slate-500">TAILWIND DEMO</p>
+					<h3 class="text-lg font-bold text-slate-800">Tailwind CSS 已生效</h3>
+					<p class="text-sm text-slate-600">
+						这块区域完全由 Tailwind 原子类实现，你可以直接在业务组件里混用 Tailwind 与 Element
+						Plus。
+					</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<span
+						class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200"
+					>
+						Ready
+					</span>
+					<button
+						type="button"
+						class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 active:scale-[0.98]"
+					>
+						Tailwind Button
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<el-row :gutter="16" class="charts">
 			<el-col :xs="24" :lg="12">
 				<el-card shadow="never">
