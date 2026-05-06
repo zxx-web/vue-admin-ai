@@ -26,10 +26,14 @@ request.interceptors.response.use(
 			if (pinia) {
 				const { useAuthStore } = await import('@/stores/auth');
 				useAuthStore().clearSession();
+				const { resetDynamicRoutes } = await import('@/router');
+				resetDynamicRoutes();
 			} else {
 				localStorage.removeItem('auth_token');
 				localStorage.removeItem('auth_username');
 				localStorage.removeItem('auth_role');
+				const { resetDynamicRoutes } = await import('@/router');
+				resetDynamicRoutes();
 			}
 			const { default: router } = await import('@/router');
 			const path = router.currentRoute.value.path;

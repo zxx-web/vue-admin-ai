@@ -11,6 +11,8 @@ declare module 'vue-router' {
 		guestOnly?: boolean;
 		/** 允许访问的角色；不填则登录即可访问 */
 		roles?: readonly AppRole[];
+		/** 侧边栏菜单图标（与布局内 iconMap 键名对应） */
+		icon?: string;
 	}
 }
 

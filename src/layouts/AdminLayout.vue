@@ -1,20 +1,34 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowDown, Close, Document, Grid, Odometer, User } from '@element-plus/icons-vue';
+import type { Component as IconComponent } from 'vue';
+import { ArrowDown, Close, Document, Grid, Odometer, Setting, User } from '@element-plus/icons-vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { ROLE_LABELS } from '@/constants/role';
+import { routesToMenuTree, type MenuNode } from '@/router/routeHelpers';
+import { resetDynamicRoutes } from '@/router';
 import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
+import { usePermissionStore } from '@/stores/permission';
 import { useTabsStore } from '@/stores/tabs';
 import { useThemeStore } from '@/stores/theme';
+
+const menuIcons: Record<string, IconComponent> = {
+	Odometer,
+	Document,
+	Grid,
+	Setting,
+};
 
 const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 const auth = useAuthStore();
+const permission = usePermissionStore();
 const tabsStore = useTabsStore();
 const theme = useThemeStore();
+
+const menuTree = computed<MenuNode[]>(() => routesToMenuTree(permission.menuRoutes, '/'));
 
 const topNavScrollRef = ref<HTMLElement | null>(null);
 
@@ -52,6 +66,7 @@ watch(
 function onUserCommand(cmd: string) {
 	if (cmd === 'logout') {
 		auth.logout();
+		resetDynamicRoutes();
 		tabsStore.reset();
 		router.replace({ name: 'login' });
 	}
@@ -118,23 +133,32 @@ onBeforeUnmount(() => {
 				:text-color="menuTheme.textColor"
 				:active-text-color="menuTheme.activeTextColor"
 			>
-				<el-menu-item index="/dashboard">
-					<el-icon><Odometer /></el-icon>
-					<span>仪表盘</span>
-				</el-menu-item>
-				<el-menu-item index="/demo">
-					<el-icon><Document /></el-icon>
-					<span>示例页面</span>
-				</el-menu-item>
-				<el-sub-menu v-if="auth.isAdmin" index="scroll-test">
-					<template #title>
-						<el-icon><Grid /></el-icon>
-						<span>滚动测试</span>
-					</template>
-					<el-menu-item v-for="i in 8" :key="i" :index="`/scroll-test/p${i}`">
-						测试页 {{ String(i).padStart(2, '0') }}
+				<template v-for="item in menuTree" :key="item.fullPath">
+					<el-sub-menu v-if="item.children?.length" :index="item.fullPath">
+						<template #title>
+							<el-icon v-if="item.icon && menuIcons[item.icon]">
+								<component :is="menuIcons[item.icon]" />
+							</el-icon>
+							<span>{{ item.title }}</span>
+						</template>
+						<el-menu-item
+							v-for="child in item.children"
+							:key="child.fullPath"
+							:index="child.fullPath"
+						>
+							<el-icon v-if="child.icon && menuIcons[child.icon]">
+								<component :is="menuIcons[child.icon]" />
+							</el-icon>
+							<span>{{ child.title }}</span>
+						</el-menu-item>
+					</el-sub-menu>
+					<el-menu-item v-else :index="item.fullPath">
+						<el-icon v-if="item.icon && menuIcons[item.icon]">
+							<component :is="menuIcons[item.icon]" />
+						</el-icon>
+						<span>{{ item.title }}</span>
 					</el-menu-item>
-				</el-sub-menu>
+				</template>
 			</el-menu>
 		</el-aside>
 
@@ -193,7 +217,14 @@ onBeforeUnmount(() => {
 
 			<el-main class="content dark:!bg-slate-950">
 				<router-view v-slot="{ Component }">
-					<keep-alive :include="['DashboardView', 'DemoView', 'SamplePageView']">
+					<keep-alive
+						:include="[
+							'DashboardView',
+							'DemoView',
+							'SamplePageView',
+							'SystemPermissionPlaceholderView',
+						]"
+					>
 						<component :is="Component" />
 					</keep-alive>
 				</router-view>
