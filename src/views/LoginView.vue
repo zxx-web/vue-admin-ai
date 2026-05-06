@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import type { FormInstance } from 'element-plus';
 import { ElMessage } from 'element-plus';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
@@ -39,8 +40,12 @@ async function onSubmit() {
 	loading.value = true;
 	try {
 		await auth.login({ username: form.username.trim(), password: form.password });
-		const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard';
-		await router.replace(redirect || '/dashboard');
+		const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null;
+		if (redirect) {
+			await router.replace(redirect);
+		} else {
+			await router.replace({ name: getFirstAllowedRouteName(auth.role) });
+		}
 		ElMessage.success('登录成功');
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : '登录失败';
@@ -83,7 +88,6 @@ async function onSubmit() {
 						autocomplete="current-password"
 						show-password
 						clearable
-						@keyup.enter="onSubmit"
 					/>
 				</el-form-item>
 				<el-form-item>

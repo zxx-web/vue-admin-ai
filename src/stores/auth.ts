@@ -55,13 +55,6 @@ export const useAuthStore = defineStore('auth', () => {
 	/** 是否为管理员（可访问滚动测试等） */
 	const isAdmin = computed(() => role.value === ROLES.ADMIN);
 
-	/** 路由 meta.roles 未配置则任意登录用户可进；配置了则需命中其一 */
-	function hasRouteAccess(routeRoles: readonly AppRole[] | undefined): boolean {
-		if (!routeRoles?.length) return true;
-		if (!role.value) return false;
-		return routeRoles.includes(role.value);
-	}
-
 	return {
 		token,
 		username,
@@ -72,6 +65,5 @@ export const useAuthStore = defineStore('auth', () => {
 		logout,
 		clearSession,
 		syncFromStorage,
-		hasRouteAccess,
 	};
 });

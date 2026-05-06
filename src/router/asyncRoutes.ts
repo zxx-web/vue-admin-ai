@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { ROLES } from '@/constants/role';
+import { scrollTestRedirect } from '@/router/scrollRedirect';
 
 const scrollTestChildren: RouteRecordRaw[] = Array.from({ length: 8 }, (_, i) => {
 	const n = i + 1;
@@ -28,13 +28,12 @@ export const asyncChildRoutes: RouteRecordRaw[] = [
 	{
 		path: 'scroll-test',
 		name: 'scroll-test',
-		redirect: { name: 'scroll-test-p1' },
+		redirect: scrollTestRedirect,
 		component: () => import('@/layouts/ParentView.vue'),
 		meta: {
 			requiresAuth: true,
 			title: '滚动测试',
 			icon: 'Grid',
-			roles: [ROLES.ADMIN] as const,
 		},
 		children: scrollTestChildren,
 	},
@@ -47,13 +46,12 @@ export const asyncChildRoutes: RouteRecordRaw[] = [
 			requiresAuth: true,
 			title: '系统设置',
 			icon: 'Setting',
-			roles: [ROLES.ADMIN] as const,
 		},
 		children: [
 			{
 				path: 'permission',
 				name: 'system-permission',
-				component: () => import('@/views/SystemPermissionPlaceholderView.vue'),
+				component: () => import('@/views/SystemPermissionView.vue'),
 				meta: { requiresAuth: true, title: '权限配置' },
 			},
 		],

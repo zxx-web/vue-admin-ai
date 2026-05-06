@@ -1,23 +1,57 @@
 import type { RouteRecordRaw } from 'vue-router';
-import type { AppRole } from '@/constants/role';
 
-/** 按角色过滤异步子路由（无 meta.roles 或角色命中则保留） */
-export function filterRoutesByRole(routes: RouteRecordRaw[], role: AppRole): RouteRecordRaw[] {
+/**
+ * 按路由 name 过滤。
+ * - 勾选父级 name（如 scroll-test）表示允许整组子路由
+ * - 仅勾选部分子级（如 scroll-test-p2）则只注册这些子路由，父级作为容器保留
+ */
+export function filterRoutesByAllowedNames(
+	routes: RouteRecordRaw[],
+	allowed: Set<string>
+): RouteRecordRaw[] {
 	const res: RouteRecordRaw[] = [];
 	for (const route of routes) {
-		const roles = route.meta?.roles as readonly AppRole[] | undefined;
-		if (roles?.length && !roles.includes(role)) continue;
-
+		const name = route.name != null ? String(route.name) : '';
 		if (route.children?.length) {
-			const children = filterRoutesByRole(route.children, role);
-			if (!children.length) continue;
-			res.push({ ...route, children });
+			const parentCoversAll = name && allowed.has(name);
+			const nextChildren = parentCoversAll
+				? route.children.map((c) => ({ ...c }))
+				: filterRoutesByAllowedNames(route.children, allowed);
+			if (nextChildren.length > 0) {
+				res.push({ ...route, children: nextChildren });
+			}
 			continue;
 		}
-
-		res.push({ ...route });
+		if (name && allowed.has(name)) {
+			res.push({ ...route });
+		}
 	}
 	return res;
+}
+
+export type PermissionTreeNode = {
+	name: string;
+	label: string;
+	children?: PermissionTreeNode[];
+};
+
+/** 权限配置页用（与侧边栏结构一致，含仪表盘） */
+export function buildRoutePermissionTree(routes: RouteRecordRaw[]): PermissionTreeNode[] {
+	return routes.map((r) => {
+		const name = String(r.name ?? '');
+		const label = (r.meta?.title as string) || name;
+		if (!r.children?.length) {
+			return { name, label };
+		}
+		return {
+			name,
+			label,
+			children: r.children.map((c) => ({
+				name: String(c.name ?? ''),
+				label: (c.meta?.title as string) || String(c.name),
+			})),
+		};
+	});
 }
 
 export type MenuNode = {
@@ -30,7 +64,6 @@ export type MenuNode = {
 function joinParentPath(parentFull: string, segment: string): string {
 	if (!segment) return parentFull || '/';
 	if (segment.startsWith('/')) return segment;
-	// 只保留路径段，避免出现 //scroll-test/p1 这类非法路径
 	const base = parentFull === '/' ? '' : parentFull.replace(/^\/+|\/+$/g, '');
 	return `/${[base, segment].filter(Boolean).join('/')}`;
 }

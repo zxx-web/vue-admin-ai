@@ -5,6 +5,7 @@ import type { Component as IconComponent } from 'vue';
 import { ArrowDown, Close, Document, Grid, Odometer, Setting, User } from '@element-plus/icons-vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { ROLE_LABELS } from '@/constants/role';
+import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
 import { routesToMenuTree, type MenuNode } from '@/router/routeHelpers';
 import { resetDynamicRoutes } from '@/router';
 import { useAppStore } from '@/stores/app';
@@ -85,7 +86,7 @@ function closeTab(path: string) {
 	if (!closingCurrent) return;
 	const next = list[idx - 1] ?? list[idx + 1];
 	if (next) router.push(next.fullPath);
-	else router.push({ name: 'dashboard' });
+	else router.push({ name: getFirstAllowedRouteName(auth.role) });
 }
 
 /** 在横向导航上：鼠标滚轮上下 / 触控板左右滑动 → 左右滚动标签区域 */
@@ -218,12 +219,7 @@ onBeforeUnmount(() => {
 			<el-main class="content dark:!bg-slate-950">
 				<router-view v-slot="{ Component }">
 					<keep-alive
-						:include="[
-							'DashboardView',
-							'DemoView',
-							'SamplePageView',
-							'SystemPermissionPlaceholderView',
-						]"
+						:include="['DashboardView', 'DemoView', 'SamplePageView', 'SystemPermissionView']"
 					>
 						<component :is="Component" />
 					</keep-alive>
