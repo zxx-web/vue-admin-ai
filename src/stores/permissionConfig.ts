@@ -4,10 +4,12 @@ import type { RouteRecordNameGeneric } from 'vue-router';
 import type { AppRole } from '@/constants/role';
 import {
 	PERMISSION_STORAGE_KEY,
+	expandStoredRouteKeysForAccessCheck,
 	type RoleRouteNameConfig,
 	defaultRoleRouteConfig,
 	parseStoredPermissionConfig,
 } from '@/constants/permissions';
+import { ROUTE_NAME } from '@/router/constantRoutes';
 
 export const usePermissionConfigStore = defineStore('permissionConfig', () => {
 	const config = ref<RoleRouteNameConfig>(
@@ -26,7 +28,16 @@ export const usePermissionConfigStore = defineStore('permissionConfig', () => {
 	function isRouteAllowed(role: AppRole | null, name: RouteRecordNameGeneric): boolean {
 		if (name == null || typeof name !== 'string') return true;
 		if (!role) return false;
-		return allowedSetForRole(role).has(name);
+		if (
+			name === ROUTE_NAME.LOGIN ||
+			name === ROUTE_NAME.ROOT_PLACEHOLDER ||
+			name === ROUTE_NAME.NOT_FOUND ||
+			name === ROUTE_NAME.ADMIN_ROOT
+		) {
+			return true;
+		}
+		const expanded = expandStoredRouteKeysForAccessCheck([...allowedSetForRole(role)]);
+		return expanded.has(name);
 	}
 
 	function setAllowedNames(role: AppRole, names: string[]) {

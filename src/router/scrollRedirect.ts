@@ -1,6 +1,5 @@
 import { getActivePinia } from 'pinia';
 import type { RouteLocationGeneric, RouteLocationNormalizedLoaded } from 'vue-router';
-import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
 import { useAuthStore } from '@/stores/auth';
 import { usePermissionConfigStore } from '@/stores/permissionConfig';
 
@@ -21,5 +20,6 @@ export function scrollTestRedirect(to: RouteLocationGeneric, from: RouteLocation
 	for (const n of SCROLL_LEAF_ORDER) {
 		if (allowed.has(n)) return { name: n };
 	}
-	return { name: getFirstAllowedRouteName(auth.role) };
+	// 避免引用 getFirstAllowedRouteName → permissionConfig → asyncRoutes 形成循环依赖
+	return { name: 'dashboard' as const };
 }

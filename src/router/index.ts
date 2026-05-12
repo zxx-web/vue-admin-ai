@@ -58,6 +58,13 @@ function mountBusinessRoutes(role: AppRole) {
 	router.addRoute(notFoundRoute);
 }
 
+/** 在 `router.replace({ name: '…' })` 之前调用：避免 resolve 阶段尚未 addRoute 而出现 “No match for dashboard” */
+export function ensureBusinessRoutesMounted(role: AppRole): void {
+	if (!router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
+		mountBusinessRoutes(role);
+	}
+}
+
 export function resetDynamicRoutes() {
 	if (router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
 		router.removeRoute(ROUTE_NAME.ADMIN_ROOT);
@@ -88,8 +95,24 @@ router.beforeEach((to) => {
 	auth.syncFromStorage();
 
 	if (auth.isLoggedIn && auth.role && !router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
-		mountBusinessRoutes(auth.role);
-		return { path: to.path, query: to.query, hash: to.hash, replace: true };
+		const role = auth.role;
+		mountBusinessRoutes(role);
+		// 子路由刚 addRoute 后，用「仅 path」重试可能仍是 `/` 或误匹配 NotFound，导致登录后进不去后台
+		const n = typeof to.name === 'string' ? to.name : '';
+		const bogus =
+			n === ROUTE_NAME.NOT_FOUND || n === ROUTE_NAME.ROOT_PLACEHOLDER || n === ROUTE_NAME.LOGIN;
+		if (n && !bogus && router.hasRoute(n)) {
+			return { name: n, params: to.params, query: to.query, hash: to.hash, replace: true };
+		}
+		if (to.path && to.path !== '/' && to.path !== '/login') {
+			return { path: to.path, query: to.query, hash: to.hash, replace: true };
+		}
+		return {
+			name: getFirstAllowedRouteName(role),
+			query: to.query,
+			hash: to.hash,
+			replace: true,
+		};
 	}
 
 	if (to.name === ROUTE_NAME.NOT_FOUND && !auth.isLoggedIn) {

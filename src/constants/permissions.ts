@@ -17,6 +17,23 @@ export function allConfigurableRouteNames(): string[] {
 
 export type RoleRouteNameConfig = Record<AppRole, string[]>;
 
+/**
+ * 与 filterRoutesByAllowedNames 一致：配置里勾选父路由 name 时，子路由也应视为可访问
+ *（用于导航守卫 isRouteAllowed，避免仅存 system 却无法匹配 to.name === system-permission）
+ */
+export function expandStoredRouteKeysForAccessCheck(names: readonly string[]): Set<string> {
+	const out = new Set(names);
+	if (out.has('system')) {
+		out.add('system-permission');
+	}
+	if (out.has('scroll-test')) {
+		for (let i = 1; i <= 8; i++) {
+			out.add(`scroll-test-p${i}`);
+		}
+	}
+	return out;
+}
+
 const LEGACY_MODULE_IDS = ['demo', 'scroll-test', 'system'] as const;
 
 export function defaultRoleRouteConfig(): RoleRouteNameConfig {

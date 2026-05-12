@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import {
+	isNavigationFailure,
+	NavigationFailureType,
+	useRoute,
+	useRouter,
+	type RouteLocationRaw,
+} from 'vue-router';
 import type { FormInstance } from 'element-plus';
 import { ElMessage } from 'element-plus';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import type { AppRole } from '@/constants/role';
+import { ensureBusinessRoutesMounted } from '@/router';
 import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
 import { useAuthStore } from '@/stores/auth';
 
@@ -30,6 +38,49 @@ const rules = {
 
 const formRef = ref<FormInstance>();
 
+/** 仅允许站内路径，避免 `redirect=https://…` 或 `//…` 导致 router.replace 抛错、表现为「登不进去」 */
+function sanitizeInternalRedirect(raw: string | null): string | null {
+	if (raw == null || typeof raw !== 'string') return null;
+	const t = raw.trim();
+	if (!t.startsWith('/') || t.startsWith('//')) return null;
+	if (/^https?:/i.test(t)) return null;
+	return t;
+}
+
+/** 与 vue-router ErrorTypes.NAVIGATION_GUARD_REDIRECT 相同；const enum 在 verbatimModuleSyntax 下不可 import */
+const NAVIGATION_GUARD_REDIRECT = 2;
+
+function isBenignNavigationFailure(err: unknown): boolean {
+	if (!isNavigationFailure(err)) return false;
+	const t = (err as { type: number }).type;
+	return (
+		t === NAVIGATION_GUARD_REDIRECT ||
+		t === NavigationFailureType.duplicated ||
+		t === NavigationFailureType.cancelled ||
+		t === NavigationFailureType.aborted
+	);
+}
+
+/**
+ * 动态路由刚 addRoute 时，首次 replace 可能短暂无匹配或 Promise 以 NavigationFailure 结束；
+ * 与 F5 一样，再 replace 或整页跳转由守卫重新挂载后即可稳定进入首页。
+ */
+async function navigateAfterLogin(role: AppRole, target: RouteLocationRaw) {
+	const home = { name: getFirstAllowedRouteName(role) } as const;
+	try {
+		await router.replace(target);
+		return;
+	} catch (err: unknown) {
+		if (isBenignNavigationFailure(err)) return;
+	}
+	try {
+		await router.replace(home);
+	} catch (err: unknown) {
+		if (isBenignNavigationFailure(err)) return;
+		window.location.assign(router.resolve(home).href);
+	}
+}
+
 async function onSubmit() {
 	if (!formRef.value) return;
 	try {
@@ -40,11 +91,18 @@ async function onSubmit() {
 	loading.value = true;
 	try {
 		await auth.login({ username: form.username.trim(), password: form.password });
-		const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null;
+		const role = auth.role;
+		if (!role) {
+			throw new Error('登录状态异常：未返回角色');
+		}
+		ensureBusinessRoutesMounted(role);
+		const rawRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : null;
+		const redirect = sanitizeInternalRedirect(rawRedirect);
+		const home = { name: getFirstAllowedRouteName(role) } as const;
 		if (redirect) {
-			await router.replace(redirect);
+			await navigateAfterLogin(role, redirect);
 		} else {
-			await router.replace({ name: getFirstAllowedRouteName(auth.role) });
+			await navigateAfterLogin(role, home);
 		}
 		ElMessage.success('登录成功');
 	} catch (e) {
