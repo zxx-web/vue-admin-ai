@@ -21,7 +21,7 @@ const auth = useAuthStore();
 
 const mockHint = computed(() =>
 	import.meta.env.VITE_MOCK_AUTH === 'true'
-		? 'Mock 账号：① 管理员 admin / admin123（含「滚动测试」）② 运营 user / user123（仅仪表盘与示例页）'
+		? 'Mock：admin/admin123（领导）· manager/manager123（经理，待办审批）· user/user123（员工，发起请假）'
 		: ''
 );
 

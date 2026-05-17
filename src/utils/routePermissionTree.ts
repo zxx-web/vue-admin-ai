@@ -38,6 +38,30 @@ export function normalizeTreeCheckedToStorage(checkedKeys: string[]): string[] {
 		out.push(SYSTEM_CHILD);
 	}
 
+	const wfParent = set.has('workflow');
+	const wfChild = set.has('workflow-designer');
+	if (wfParent && wfChild) {
+		out.push('workflow');
+	} else if (wfParent) {
+		out.push('workflow');
+	} else if (wfChild) {
+		out.push('workflow-designer');
+	}
+
+	const LEAVE_CHILDREN = ['leave-apply', 'leave-todos'] as const;
+	const leaveParent = set.has('leave');
+	const allLeaveChildren = LEAVE_CHILDREN.every((k) => set.has(k));
+	if (leaveParent || allLeaveChildren) {
+		out.push('leave');
+	} else {
+		for (const k of LEAVE_CHILDREN) {
+			if (set.has(k)) out.push(k);
+		}
+	}
+	if (set.has('leave-task-approve')) {
+		out.push('leave-task-approve');
+	}
+
 	return out;
 }
 
@@ -61,6 +85,24 @@ export function storageKeysToTreeCheckedKeys(stored: string[]): string[] {
 		out.push('system');
 	} else if (set.has(SYSTEM_CHILD)) {
 		out.push(SYSTEM_CHILD);
+	}
+
+	if (set.has('workflow')) {
+		out.push('workflow');
+		out.push('workflow-designer');
+	} else if (set.has('workflow-designer')) {
+		out.push('workflow-designer');
+	}
+
+	if (set.has('leave')) {
+		out.push('leave');
+		out.push('leave-apply');
+		out.push('leave-todos');
+		out.push('leave-task-approve');
+	} else {
+		if (set.has('leave-apply')) out.push('leave-apply');
+		if (set.has('leave-todos')) out.push('leave-todos');
+		if (set.has('leave-task-approve')) out.push('leave-task-approve');
 	}
 
 	return out;

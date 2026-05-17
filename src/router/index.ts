@@ -40,7 +40,10 @@ const router = createRouter({
 function mountBusinessRoutes(role: AppRole) {
 	const permCfg = usePermissionConfigStore();
 	permCfg.loadFromStorage();
-	const filtered = filterRoutesByAllowedNames(asyncChildRoutes, permCfg.allowedSetForRole(role));
+	const filtered = filterRoutesByAllowedNames(
+		asyncChildRoutes,
+		permCfg.expandedAllowedSetForRole(role)
+	);
 	const permission = usePermissionStore();
 	permission.setMenuRoutes(filtered);
 

@@ -24,6 +24,11 @@ export const usePermissionConfigStore = defineStore('permissionConfig', () => {
 		return new Set(config.value[role] ?? []);
 	}
 
+	/** 与 `isRouteAllowed` 一致：展开父级、待办隐含审批详情等，供动态注册路由使用 */
+	function expandedAllowedSetForRole(role: AppRole): Set<string> {
+		return expandStoredRouteKeysForAccessCheck([...allowedSetForRole(role)]);
+	}
+
 	/** 当前路由是否允许访问 */
 	function isRouteAllowed(role: AppRole | null, name: RouteRecordNameGeneric): boolean {
 		if (name == null || typeof name !== 'string') return true;
@@ -36,7 +41,7 @@ export const usePermissionConfigStore = defineStore('permissionConfig', () => {
 		) {
 			return true;
 		}
-		const expanded = expandStoredRouteKeysForAccessCheck([...allowedSetForRole(role)]);
+		const expanded = expandedAllowedSetForRole(role);
 		return expanded.has(name);
 	}
 
@@ -57,6 +62,7 @@ export const usePermissionConfigStore = defineStore('permissionConfig', () => {
 		config,
 		loadFromStorage,
 		allowedSetForRole,
+		expandedAllowedSetForRole,
 		isRouteAllowed,
 		setAllowedNames,
 		persist,

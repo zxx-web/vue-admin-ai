@@ -2,7 +2,17 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Component as IconComponent } from 'vue';
-import { ArrowDown, Close, Document, Grid, Odometer, Setting, User } from '@element-plus/icons-vue';
+import {
+	ArrowDown,
+	Calendar,
+	Close,
+	Connection,
+	Document,
+	Grid,
+	Odometer,
+	Setting,
+	User,
+} from '@element-plus/icons-vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { ROLE_LABELS } from '@/constants/role';
 import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
@@ -19,6 +29,8 @@ const menuIcons: Record<string, IconComponent> = {
 	Document,
 	Grid,
 	Setting,
+	Connection,
+	Calendar,
 };
 
 const route = useRoute();
@@ -219,7 +231,16 @@ onBeforeUnmount(() => {
 			<el-main class="content dark:!bg-slate-950">
 				<router-view v-slot="{ Component }">
 					<keep-alive
-						:include="['DashboardView', 'DemoView', 'SamplePageView', 'SystemPermissionView']"
+						:include="[
+							'DashboardView',
+							'DemoView',
+							'SamplePageView',
+							'SystemPermissionView',
+							'ProcessDesignerView',
+							'LeaveApplyView',
+							'LeaveTodoListView',
+							'LeaveTaskApproveView',
+						]"
 					>
 						<component :is="Component" />
 					</keep-alive>

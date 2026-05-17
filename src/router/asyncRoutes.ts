@@ -56,4 +56,53 @@ export const asyncChildRoutes: RouteRecordRaw[] = [
 			},
 		],
 	},
+	{
+		path: 'workflow',
+		name: 'workflow',
+		redirect: { name: 'workflow-designer' },
+		component: () => import('@/layouts/ParentView.vue'),
+		meta: {
+			requiresAuth: true,
+			title: '流程管理',
+			icon: 'Connection',
+		},
+		children: [
+			{
+				path: 'designer',
+				name: 'workflow-designer',
+				component: () => import('@/views/workflow/ProcessDesignerView.vue'),
+				meta: { requiresAuth: true, title: '流程设计器' },
+			},
+		],
+	},
+	{
+		path: 'leave',
+		name: 'leave',
+		component: () => import('@/layouts/ParentView.vue'),
+		meta: {
+			requiresAuth: true,
+			title: '请假审批',
+			icon: 'Calendar',
+		},
+		children: [
+			{
+				path: 'apply',
+				name: 'leave-apply',
+				component: () => import('@/views/leave/LeaveApplyView.vue'),
+				meta: { requiresAuth: true, title: '发起请假' },
+			},
+			{
+				path: 'todos',
+				name: 'leave-todos',
+				component: () => import('@/views/leave/LeaveTodoListView.vue'),
+				meta: { requiresAuth: true, title: '待办审批' },
+			},
+			{
+				path: 'approve/:taskId',
+				name: 'leave-task-approve',
+				component: () => import('@/views/leave/LeaveTaskApproveView.vue'),
+				meta: { requiresAuth: true, title: '审批详情', hidden: true },
+			},
+		],
+	},
 ];

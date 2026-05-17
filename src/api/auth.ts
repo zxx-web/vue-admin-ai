@@ -21,13 +21,19 @@ export async function login(payload: LoginPayload): Promise<LoginResult> {
 				user: { username: payload.username, role: ROLES.ADMIN },
 			};
 		}
+		if (payload.username === 'manager' && payload.password === 'manager123') {
+			return {
+				token: `mock.${btoa(`${payload.username}:${Date.now()}`)}`,
+				user: { username: payload.username, role: ROLES.MANAGER },
+			};
+		}
 		if (payload.username === 'user' && payload.password === 'user123') {
 			return {
 				token: `mock.${btoa(`${payload.username}:${Date.now()}`)}`,
 				user: { username: payload.username, role: ROLES.OPERATOR },
 			};
 		}
-		throw new Error('用户名或密码错误（演示：admin/admin123 或 user/user123）');
+		throw new Error('用户名或密码错误（演示：admin/admin123、manager/manager123 或 user/user123）');
 	}
 
 	const { data } = await request.post<LoginResult>('/auth/login', payload);

@@ -22,7 +22,10 @@ export function getFirstAllowedRouteName(role: AppRole | null): string {
 	if (!role) return 'dashboard';
 	const perm = usePermissionConfigStore();
 	perm.loadFromStorage();
-	const filtered = filterRoutesByAllowedNames(asyncChildRoutes, perm.allowedSetForRole(role));
+	const filtered = filterRoutesByAllowedNames(
+		asyncChildRoutes,
+		perm.expandedAllowedSetForRole(role)
+	);
 	const leaf = firstLeafRouteName(filtered);
 	if (leaf) return leaf;
 	return 'dashboard';

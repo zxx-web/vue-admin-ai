@@ -12,6 +12,12 @@ export function allConfigurableRouteNames(): string[] {
 		...Array.from({ length: 8 }, (_, i) => `scroll-test-p${i + 1}`),
 		'system',
 		'system-permission',
+		'workflow',
+		'workflow-designer',
+		'leave',
+		'leave-apply',
+		'leave-todos',
+		'leave-task-approve',
 	];
 }
 
@@ -31,6 +37,17 @@ export function expandStoredRouteKeysForAccessCheck(names: readonly string[]): S
 			out.add(`scroll-test-p${i}`);
 		}
 	}
+	if (out.has('workflow')) {
+		out.add('workflow-designer');
+	}
+	if (out.has('leave')) {
+		out.add('leave-apply');
+		out.add('leave-todos');
+		out.add('leave-task-approve');
+	}
+	if (out.has('leave-todos')) {
+		out.add('leave-task-approve');
+	}
 	return out;
 }
 
@@ -38,8 +55,9 @@ const LEGACY_MODULE_IDS = ['demo', 'scroll-test', 'system'] as const;
 
 export function defaultRoleRouteConfig(): RoleRouteNameConfig {
 	return {
-		[ROLES.ADMIN]: ['dashboard', 'demo', 'system', 'scroll-test'],
-		[ROLES.OPERATOR]: ['dashboard', 'demo'],
+		[ROLES.ADMIN]: ['dashboard', 'demo', 'system', 'scroll-test', 'workflow', 'leave'],
+		[ROLES.MANAGER]: ['dashboard', 'demo', 'leave'],
+		[ROLES.OPERATOR]: ['dashboard', 'demo', 'leave'],
 	};
 }
 
@@ -56,6 +74,16 @@ function migrateLegacyModuleIds(arr: string[]): string[] {
 			out.add('system');
 			out.add('system-permission');
 		}
+		if (x === 'workflow') {
+			out.add('workflow');
+			out.add('workflow-designer');
+		}
+		if (x === 'leave') {
+			out.add('leave');
+			out.add('leave-apply');
+			out.add('leave-todos');
+			out.add('leave-task-approve');
+		}
 	}
 	return [...out];
 }
@@ -67,7 +95,7 @@ export function parseStoredPermissionConfig(raw: string | null): RoleRouteNameCo
 		const o = JSON.parse(raw) as Record<string, unknown>;
 		const known = new Set(allConfigurableRouteNames());
 		const out: RoleRouteNameConfig = { ...base };
-		for (const role of [ROLES.ADMIN, ROLES.OPERATOR] as const) {
+		for (const role of [ROLES.ADMIN, ROLES.MANAGER, ROLES.OPERATOR] as const) {
 			const arr = o[role];
 			if (!Array.isArray(arr) || !arr.every((x) => typeof x === 'string')) continue;
 			const isLegacy =

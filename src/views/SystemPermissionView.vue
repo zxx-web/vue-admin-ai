@@ -29,6 +29,7 @@ const treeData = buildRoutePermissionTree(asyncChildRoutes);
 
 const draft = ref<RoleRouteNameConfig>({
 	[ROLES.ADMIN]: [],
+	[ROLES.MANAGER]: [],
 	[ROLES.OPERATOR]: [],
 });
 
@@ -36,6 +37,7 @@ function pullDraft() {
 	permCfg.loadFromStorage();
 	draft.value = {
 		[ROLES.ADMIN]: [...permCfg.config[ROLES.ADMIN]],
+		[ROLES.MANAGER]: [...permCfg.config[ROLES.MANAGER]],
 		[ROLES.OPERATOR]: [...permCfg.config[ROLES.OPERATOR]],
 	};
 }
@@ -67,6 +69,7 @@ function onTreeCheck() {
 
 async function onSave() {
 	permCfg.setAllowedNames(ROLES.ADMIN, draft.value[ROLES.ADMIN]);
+	permCfg.setAllowedNames(ROLES.MANAGER, draft.value[ROLES.MANAGER]);
 	permCfg.setAllowedNames(ROLES.OPERATOR, draft.value[ROLES.OPERATOR]);
 	permCfg.persist();
 	await remountBusinessRoutes();
@@ -106,6 +109,7 @@ async function onResetDefault() {
 				<span class="toolbar-label">配置角色</span>
 				<el-select v-model="selectedRole" class="role-select" :teleported="false">
 					<el-option :label="ROLE_LABELS[ROLES.ADMIN]" :value="ROLES.ADMIN" />
+					<el-option :label="ROLE_LABELS[ROLES.MANAGER]" :value="ROLES.MANAGER" />
 					<el-option :label="ROLE_LABELS[ROLES.OPERATOR]" :value="ROLES.OPERATOR" />
 				</el-select>
 				<span class="toolbar-hint">
