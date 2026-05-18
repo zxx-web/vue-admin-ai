@@ -1,6 +1,7 @@
 /**
  * Mock 流程运行时：根据 LogicFlow 图驱动实例状态与任务流转，与设计器/前端共用 processEngine。
  */
+import { createExpenseProcessSeedData } from '@/constants/expenseProcessDefinitionSeed';
 import { createLeaveProcessSeedData } from '@/constants/leaveProcessDefinitionSeed';
 import type {
 	CompleteTaskPayload,
@@ -23,8 +24,11 @@ import {
 	type ParsedNode,
 } from '@/utils/processEngine';
 
-function nowIso() {
-	return new Date().toISOString();
+/** 本地时间字符串，用于轨迹/发起时间展示 */
+function nowLocalTime() {
+	const d = new Date();
+	const pad = (n: number) => String(n).padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 function readCurrentUsername(): string {
@@ -51,18 +55,25 @@ const instances = new Map<string, ProcessInstance>();
 const traces = new Map<string, TraceItem[]>();
 const tasks = new Map<string, RuntimeTask>();
 
-function ensureSeedDefinition() {
-	const key = 'leave_process';
-	if (definitions.has(key)) return;
-	definitions.set(key, {
-		key,
-		name: '员工请假',
-		logicflowData: createLeaveProcessSeedData(),
-	});
+function ensureSeedDefinitions() {
+	if (!definitions.has('leave_process')) {
+		definitions.set('leave_process', {
+			key: 'leave_process',
+			name: '员工请假',
+			logicflowData: createLeaveProcessSeedData(),
+		});
+	}
+	if (!definitions.has('expense_process')) {
+		definitions.set('expense_process', {
+			key: 'expense_process',
+			name: '报销',
+			logicflowData: createExpenseProcessSeedData(),
+		});
+	}
 }
 
 function getDefinition(key: string): ProcessDefinitionDTO | undefined {
-	ensureSeedDefinition();
+	ensureSeedDefinitions();
 	return definitions.get(key);
 }
 
@@ -91,7 +102,7 @@ function finishInstance(
 		nodeName: end ? getNodeLabel(end) : '结束',
 		action: rejected ? '已驳回并结束' : '流程结束',
 		operator: 'system',
-		time: nowIso(),
+		time: nowLocalTime(),
 	});
 }
 
@@ -132,7 +143,7 @@ function advanceAfterStart(inst: ProcessInstance, graph: ParsedGraph): RuntimeTa
 				nodeName: getNodeLabel(current),
 				action: '已提交',
 				operator: inst.starterUsername,
-				time: nowIso(),
+				time: nowLocalTime(),
 			});
 			const next = findNextFlowTarget(graph, current.id, vars);
 			if (!next) {
@@ -168,7 +179,7 @@ function advanceAfterComplete(
 			action: approved ? '通过' : '驳回',
 			operator,
 			comment,
-			time: nowIso(),
+			time: nowLocalTime(),
 		});
 	}
 
@@ -196,7 +207,7 @@ export function mockSaveDefinition(body: ProcessDefinitionDTO) {
 }
 
 export function mockListDefinitions(): { key: string; name: string }[] {
-	ensureSeedDefinition();
+	ensureSeedDefinitions();
 	return [...definitions.values()].map((d) => ({ key: d.key, name: d.name }));
 }
 
@@ -216,7 +227,7 @@ export function mockStartProcess(body: StartProcessPayload) {
 		procInstId,
 		processKey: body.processKey,
 		starterUsername: starter,
-		startTime: nowIso(),
+		startTime: nowLocalTime(),
 		variables: buildProcessVariables(starter, body.variables),
 		status: 'running',
 	};
@@ -228,7 +239,7 @@ export function mockStartProcess(body: StartProcessPayload) {
 		nodeName: start ? getNodeLabel(start) : '开始',
 		action: '流程已发起',
 		operator: starter,
-		time: nowIso(),
+		time: nowLocalTime(),
 	});
 
 	const firstTask = advanceAfterStart(inst, graph);
