@@ -20,13 +20,10 @@ import {
 	resolveFormSchema,
 } from '@/utils/processEngine';
 
-/**
- * 流程相关 UI 状态：待办、流程定义（设计器 / 发起 / 审批页共享）。
- */
+/** 流程相关 UI 状态：待办、流程定义（设计器 / 发起 / 审批页共享） */
 export const useWorkflowStore = defineStore('workflow', () => {
 	const todoList = ref<TaskListItem[]>([]);
 	const todoLoading = ref(false);
-	const lastMutationTick = ref(0);
 
 	const processList = ref<ProcessDefinitionListItem[]>([]);
 	const processListLoading = ref(false);
@@ -36,6 +33,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 	const draftProcessKey = ref('');
 	const draftProcessName = ref('');
 
+	/** 拉取当前用户的待办任务列表 */
 	async function refreshTodos() {
 		todoLoading.value = true;
 		try {
@@ -45,6 +43,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		}
 	}
 
+	/** 拉取已发布的流程定义列表（设计器侧栏 / 发起页下拉） */
 	async function refreshProcessList() {
 		processListLoading.value = true;
 		try {
@@ -54,6 +53,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		}
 	}
 
+	/** 按 key 加载流程定义并同步到设计器草稿字段 */
 	async function loadProcessDefinition(key: string): Promise<ProcessDefinitionDTO | null> {
 		definitionLoading.value = true;
 		try {
@@ -69,6 +69,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		}
 	}
 
+	/** 清空设计器当前选中与草稿 */
 	function clearCurrentDefinition() {
 		selectedProcessKey.value = null;
 		currentDefinition.value = null;
@@ -76,20 +77,20 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		draftProcessName.value = '';
 	}
 
+	/** 将设计器草稿（key/name + 画布 JSON）保存到后端 */
 	async function saveCurrentProcessDefinition(logicflowData: unknown) {
-		const key = draftProcessKey.value.trim();
-		const name = draftProcessName.value.trim();
-		const body: ProcessDefinitionDTO = { key, name, logicflowData };
+		const body: ProcessDefinitionDTO = {
+			key: draftProcessKey.value.trim(),
+			name: draftProcessName.value.trim(),
+			logicflowData,
+		};
 		await saveProcessDefinitionApi(body);
 		currentDefinition.value = body;
-		selectedProcessKey.value = key;
+		selectedProcessKey.value = body.key;
 		await refreshProcessList();
 	}
 
-	function bumpMutationTick() {
-		lastMutationTick.value += 1;
-	}
-
+	/** 从已加载的定义中读取指定节点的表单 schema */
 	function schemaFromLoadedDefinition(processKey: string, nodeId: string): FormJsonSchema | null {
 		if (currentDefinition.value?.key !== processKey) return null;
 		const graph = parseLogicFlowGraph(currentDefinition.value.logicflowData);
@@ -97,12 +98,13 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		return resolveFormSchema(getNodeById(graph, nodeId));
 	}
 
+	/** 发起页预览用流程变量（含 starterRole） */
 	function applyPreviewVariables(): Record<string, unknown> {
 		const starterUsername = localStorage.getItem('auth_username') ?? 'guest';
 		return buildProcessVariables(starterUsername, {});
 	}
 
-	/** 发起页：按当前登录人 starterRole 解析网关后首个「填写申请」的表单 schema */
+	/** 发起页：按当前登录人解析网关后，首个用户任务的表单 schema */
 	async function loadApplyFormSchema(processKey: string): Promise<FormJsonSchema> {
 		if (currentDefinition.value?.key !== processKey) {
 			const def = await loadProcessDefinition(processKey);
@@ -111,7 +113,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		return resolveApplyFormSchema(currentDefinition.value?.logicflowData, applyPreviewVariables());
 	}
 
-	/** 审批页：展示申请内容用发起节点 schema；当前节点 schema 用于本节点扩展字段 */
+	/** 审批页：申请内容 schema + 当前节点 schema */
 	async function loadTaskFormSchemas(
 		processKey: string,
 		nodeId: string
@@ -130,7 +132,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
 	return {
 		todoList,
 		todoLoading,
-		lastMutationTick,
 		processList,
 		processListLoading,
 		definitionLoading,
@@ -143,7 +144,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		loadProcessDefinition,
 		clearCurrentDefinition,
 		saveCurrentProcessDefinition,
-		bumpMutationTick,
 		loadApplyFormSchema,
 		loadTaskFormSchemas,
 	};
