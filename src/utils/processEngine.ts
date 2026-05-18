@@ -1,6 +1,7 @@
 import { DEFAULT_LEAVE_FORM_SCHEMA } from '@/constants/leaveFormSchema';
 import type {
 	ApproverType,
+	ConditionOperator,
 	FormJsonSchema,
 	SequenceFlowProperties,
 	UserTaskNodeProperties,
@@ -15,8 +16,31 @@ export type ParsedNode = {
 
 export type ParsedEdgeCondition = {
 	variable: string;
+	operator: ConditionOperator;
+	/** 比较右值；等值分支也可来自旧字段 equals */
+	value?: string | number;
 	equals?: string;
 	isDefault?: boolean;
+};
+
+const OP_SYMBOL: Record<ConditionOperator, string> = {
+	eq: '=',
+	ne: '≠',
+	gt: '>',
+	gte: '≥',
+	lt: '<',
+	lte: '≤',
+};
+
+const TEXT_OP_MAP: Record<string, ConditionOperator> = {
+	'=': 'eq',
+	'==': 'eq',
+	'!=': 'ne',
+	'<>': 'ne',
+	'>': 'gt',
+	'>=': 'gte',
+	'<': 'lt',
+	'<=': 'lte',
 };
 
 export type ParsedEdge = {
@@ -62,26 +86,143 @@ function edgeTextValue(text: unknown): string {
 	return '';
 }
 
+function parseConditionOperator(raw: unknown): ConditionOperator | undefined {
+	if (
+		raw === 'eq' ||
+		raw === 'ne' ||
+		raw === 'gt' ||
+		raw === 'gte' ||
+		raw === 'lt' ||
+		raw === 'lte'
+	) {
+		return raw;
+	}
+	return undefined;
+}
+
+function parseConditionValue(raw: unknown): string | number | undefined {
+	if (typeof raw === 'number' && !Number.isNaN(raw)) return raw;
+	if (typeof raw === 'string' && raw.trim()) return raw.trim();
+	return undefined;
+}
+
+/** 从连线文案解析，如 days > 3、starterRole = user */
+function parseConditionFromText(
+	text: string
+): Pick<ParsedEdgeCondition, 'variable' | 'operator' | 'value'> | null {
+	const m = text.trim().match(/^([a-zA-Z_]\w*)\s*(>=|<=|>|<|==|!=|<>|=)\s*(.+)$/);
+	if (!m) return null;
+	const operator = TEXT_OP_MAP[m[2]];
+	if (!operator) return null;
+	const rhs = m[3].trim();
+	const num = Number(rhs);
+	return {
+		variable: m[1],
+		operator,
+		value: rhs !== '' && !Number.isNaN(num) && /^-?\d+(\.\d+)?$/.test(rhs) ? num : rhs,
+	};
+}
+
+export function formatEdgeConditionLabel(cond: ParsedEdgeCondition | undefined): string {
+	if (!cond) return '';
+	if (cond.isDefault) return '默认';
+	const rhs = cond.value ?? cond.equals ?? '';
+	return `${cond.variable} ${OP_SYMBOL[cond.operator]} ${rhs}`;
+}
+
 function parseEdgeCondition(
 	properties?: Partial<SequenceFlowProperties>,
 	text?: unknown
 ): ParsedEdgeCondition | undefined {
 	const p = properties ?? {};
+	const fromText = edgeTextValue(text);
+	const textParsed = fromText ? parseConditionFromText(fromText) : null;
+
 	const variable =
-		typeof p.conditionVariable === 'string' && p.conditionVariable.trim()
-			? p.conditionVariable.trim()
-			: DEFAULT_CONDITION_VARIABLE;
+		(typeof p.conditionVariable === 'string' && p.conditionVariable.trim()) ||
+		textParsed?.variable ||
+		DEFAULT_CONDITION_VARIABLE;
+
 	if (p.isDefault === true) {
-		return { variable, isDefault: true };
+		return { variable, operator: 'eq', isDefault: true };
 	}
-	const fromProp =
+
+	const operator = parseConditionOperator(p.conditionOperator) ?? textParsed?.operator ?? 'eq';
+
+	const fromValue = parseConditionValue(p.conditionValue);
+	const fromEquals =
 		typeof p.conditionEquals === 'string' && p.conditionEquals.trim()
 			? p.conditionEquals.trim()
 			: undefined;
-	const fromText = edgeTextValue(text);
-	const equals = fromProp ?? (fromText || undefined);
-	if (!equals) return undefined;
-	return { variable, equals };
+	const value = fromValue ?? fromEquals ?? textParsed?.value;
+
+	if (value === undefined && operator === 'eq' && !fromText) return undefined;
+
+	return {
+		variable,
+		operator,
+		value,
+		equals: typeof value === 'string' ? value : undefined,
+	};
+}
+
+function toNumber(v: unknown): number | null {
+	if (typeof v === 'number' && !Number.isNaN(v)) return v;
+	if (typeof v === 'string' && v.trim() !== '') {
+		const n = Number(v);
+		return Number.isNaN(n) ? null : n;
+	}
+	return null;
+}
+
+function compareValues(
+	actual: unknown,
+	expected: string | number | undefined,
+	operator: ConditionOperator
+): boolean {
+	if (expected === undefined) return false;
+
+	const actualNum = toNumber(actual);
+	const expectedNum = toNumber(expected);
+	const bothNumeric = actualNum !== null && expectedNum !== null;
+
+	if (bothNumeric) {
+		switch (operator) {
+			case 'eq':
+				return actualNum === expectedNum;
+			case 'ne':
+				return actualNum !== expectedNum;
+			case 'gt':
+				return actualNum > expectedNum;
+			case 'gte':
+				return actualNum >= expectedNum;
+			case 'lt':
+				return actualNum < expectedNum;
+			case 'lte':
+				return actualNum <= expectedNum;
+			default:
+				return false;
+		}
+	}
+
+	const left = String(actual ?? '');
+	const right = String(expected);
+	switch (operator) {
+		case 'eq':
+			return left === right;
+		case 'ne':
+			return left !== right;
+		case 'gt':
+			return left > right;
+		case 'gte':
+			return left >= right;
+		case 'lt':
+			return left < right;
+		case 'lte':
+			return left <= right;
+		default:
+			return false;
+	}
 }
 
 export function parseLogicFlowGraph(logicflowData: unknown): ParsedGraph | null {
@@ -148,9 +289,10 @@ function edgeConditionMatches(
 	const cond = edge.condition;
 	if (!cond) return !sourceIsGateway;
 	if (cond.isDefault) return false;
-	if (cond.equals === undefined) return !sourceIsGateway;
+	const expected = cond.value ?? cond.equals;
+	if (expected === undefined && cond.operator === 'eq') return !sourceIsGateway;
 	const actual = readVariable(variables, cond.variable);
-	return String(actual ?? '') === String(cond.equals);
+	return compareValues(actual, expected, cond.operator);
 }
 
 function pickGatewayEdge(
@@ -315,9 +457,24 @@ export function validateFormAgainstSchema(
 	schema: FormJsonSchema
 ): string | null {
 	for (const key of schema.required ?? []) {
+		const prop = schema.properties[key];
+		const title = prop?.title ?? key;
 		const v = form[key];
+
 		if (v === undefined || v === null || v === '') {
-			return `请填写完整：${schema.properties[key]?.title ?? key}`;
+			return `请填写完整：${title}`;
+		}
+
+		if (prop?.type === 'number' || prop?.type === 'integer') {
+			if (typeof v !== 'number' || Number.isNaN(v)) {
+				return `请填写有效的${title}`;
+			}
+			if (prop.minimum !== undefined && v < prop.minimum) {
+				return `${title}不能小于 ${prop.minimum}`;
+			}
+			if (prop.maximum !== undefined && v > prop.maximum) {
+				return `${title}不能大于 ${prop.maximum}`;
+			}
 		}
 	}
 	return null;

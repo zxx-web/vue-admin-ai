@@ -22,11 +22,18 @@ export type FormJsonProperty = {
 	maximum?: number;
 };
 
+/** 排他网关出线比较运算符 */
+export type ConditionOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte';
+
 /** 排他网关出线（Sequence Flow）在 LogicFlow edge.properties 中的条件配置 */
 export type SequenceFlowProperties = {
-	/** 比较的流程变量名，默认 starterRole */
+	/** 比较的流程变量名（表单字段或 starterRole 等） */
 	conditionVariable?: string;
-	/** 变量等于该值时走此分支（可与连线文案一致，如 user / manager） */
+	/** 比较运算符，默认 eq */
+	conditionOperator?: ConditionOperator;
+	/** 比较右值（数字条件填 3，等值条件填 user） */
+	conditionValue?: string | number;
+	/** 兼容旧数据：等价于 conditionOperator=eq 且 conditionValue=conditionEquals */
 	conditionEquals?: string;
 	/** 无其它分支匹配时走默认流 */
 	isDefault?: boolean;

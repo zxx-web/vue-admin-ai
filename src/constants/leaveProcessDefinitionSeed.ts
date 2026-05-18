@@ -37,6 +37,7 @@ export function createLeaveProcessSeedData(): ProcessDefinitionDTO['logicflowDat
 					...applyFormProps,
 				},
 			},
+			{ id: 'gw_days', type: 'bpmn-exclusive-gateway', x: 680, y: 80, text: '?' },
 			{
 				id: 'task_apply_mgr',
 				type: 'bpmn-user-task',
@@ -89,10 +90,30 @@ export function createLeaveProcessSeedData(): ProcessDefinitionDTO['logicflowDat
 				targetNodeId: 'task_mgr_approve',
 			},
 			{
-				id: 'e_mgr_super',
+				id: 'e_mgr_gw_days',
 				type: 'polyline',
 				sourceNodeId: 'task_mgr_approve',
+				targetNodeId: 'gw_days',
+			},
+			{
+				id: 'e_gw_days_super',
+				type: 'polyline',
+				sourceNodeId: 'gw_days',
 				targetNodeId: 'task_supervisor',
+				text: 'days > 3',
+				properties: {
+					conditionVariable: 'days',
+					conditionOperator: 'gt',
+					conditionValue: 3,
+				},
+			},
+			{
+				id: 'e_gw_days_end',
+				type: 'polyline',
+				sourceNodeId: 'gw_days',
+				targetNodeId: 'end_1',
+				text: '默认',
+				properties: { isDefault: true },
 			},
 			{
 				id: 'e_apply_mgr_super',
