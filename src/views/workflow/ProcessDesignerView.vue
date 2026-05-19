@@ -159,9 +159,12 @@ const {
 				<el-form-item v-if="taskForm.approverType === 'candidateGroup'" label="候选人组 ID">
 					<el-input v-model="taskForm.candidateGroup" />
 				</el-form-item>
-				<el-form-item label="关联表单 JSON Schema">
+				<el-form-item label="本节点表单 JSON Schema">
 					<el-input v-model="taskForm.formSchemaJson" type="textarea" :rows="12" class="mono" />
 				</el-form-item>
+				<p class="drawer-hint">
+					申请节点配置请假字段；审批节点配置办理意见等。办理页会只读展示<strong>发起人路径上首个用户任务</strong>的表单，并渲染<strong>当前节点</strong>表单供填写。
+				</p>
 				<el-alert
 					v-if="schemaParseError"
 					:title="schemaParseError"
