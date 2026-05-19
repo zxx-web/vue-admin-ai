@@ -1,8 +1,13 @@
+import { DEFAULT_APPROVE_FORM_SCHEMA } from '@/constants/approveFormSchema';
 import { DEFAULT_LEAVE_FORM_SCHEMA } from '@/constants/leaveFormSchema';
 import type { ProcessDefinitionDTO } from '@/types/workflow';
 
 const applyFormProps = {
 	formSchema: DEFAULT_LEAVE_FORM_SCHEMA,
+};
+
+const approveFormProps = {
+	formSchema: DEFAULT_APPROVE_FORM_SCHEMA,
 };
 
 /** 请假流程：开始后经排他网关按 starterRole 分支，两路汇合主管审批 */
@@ -34,7 +39,7 @@ export function createLeaveProcessSeedData(): ProcessDefinitionDTO['logicflowDat
 					nodeName: '经理审批',
 					approverType: 'role',
 					roleCode: 'manager',
-					...applyFormProps,
+					...approveFormProps,
 				},
 			},
 			{ id: 'gw_days', type: 'bpmn-exclusive-gateway', x: 680, y: 80, text: '?' },
@@ -60,7 +65,7 @@ export function createLeaveProcessSeedData(): ProcessDefinitionDTO['logicflowDat
 				properties: {
 					nodeName: '主管审批',
 					approverType: 'manager',
-					...applyFormProps,
+					...approveFormProps,
 				},
 			},
 			{ id: 'end_1', type: 'bpmn-end', x: 900, y: 200, text: '结束' },

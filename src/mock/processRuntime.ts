@@ -17,7 +17,7 @@ import {
 	getFirstUserTaskFromStart,
 	getNodeLabel,
 	parseLogicFlowGraph,
-	resolveFormSchema,
+	resolveNodeFormSchema,
 	resolveTaskAssignee,
 	shouldAutoCompleteOnStart,
 	type ParsedGraph,
@@ -118,7 +118,7 @@ function createOpenTask(inst: ProcessInstance, node: ParsedNode): RuntimeTask {
 		starterUsername: inst.starterUsername,
 		startTime: inst.startTime,
 		variables: { ...inst.variables },
-		formSchema: resolveFormSchema(node),
+		formSchema: resolveNodeFormSchema(node),
 		assignee,
 		status: 'open',
 	};

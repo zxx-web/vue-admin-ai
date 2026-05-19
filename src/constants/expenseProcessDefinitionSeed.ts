@@ -1,8 +1,13 @@
+import { DEFAULT_APPROVE_FORM_SCHEMA } from '@/constants/approveFormSchema';
 import { DEFAULT_EXPENSE_FORM_SCHEMA } from '@/constants/expenseFormSchema';
 import type { ProcessDefinitionDTO } from '@/types/workflow';
 
 const expenseFormProps = {
 	formSchema: DEFAULT_EXPENSE_FORM_SCHEMA,
+};
+
+const expenseApproveFormProps = {
+	formSchema: DEFAULT_APPROVE_FORM_SCHEMA,
 };
 
 /** 报销流程：开始 → 经理申请 → 主管审批 → 结束（线性，无网关） */
@@ -32,7 +37,7 @@ export function createExpenseProcessSeedData(): ProcessDefinitionDTO['logicflowD
 				properties: {
 					nodeName: '主管审批',
 					approverType: 'manager',
-					...expenseFormProps,
+					...expenseApproveFormProps,
 				},
 			},
 			{ id: 'exp_end', type: 'bpmn-end', x: 680, y: 200, text: '结束' },
