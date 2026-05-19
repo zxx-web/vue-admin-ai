@@ -48,7 +48,7 @@ export type UserTaskNodeProperties = {
 	roleCode?: string;
 	/** approverType === 'candidateGroup' 时的组标识 */
 	candidateGroup?: string;
-	/** 本节点关联表单 schema */
+	/** 本节点表单：申请节点为申请字段；审批节点为办理意见等 */
 	formSchema?: FormJsonSchema;
 };
 
@@ -79,7 +79,7 @@ export type TaskListItem = {
 	startTime: string;
 	/** 只读展示用：流程实例累积的表单变量 */
 	variables: Record<string, unknown>;
-	/** 当前待办节点上的表单 schema（由流程定义在创建任务时快照） */
+	/** 当前待办节点表单 schema 快照（创建任务时写入） */
 	formSchema?: FormJsonSchema;
 };
 

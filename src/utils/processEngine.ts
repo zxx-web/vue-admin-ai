@@ -1,3 +1,4 @@
+import { DEFAULT_APPROVE_FORM_SCHEMA } from '@/constants/approveFormSchema';
 import { DEFAULT_LEAVE_FORM_SCHEMA } from '@/constants/leaveFormSchema';
 import type {
 	ApproverType,
@@ -352,8 +353,32 @@ export function getNodeFormSchema(node: ParsedNode | undefined): FormJsonSchema 
 	return isValidFormSchema(schema) ? schema : undefined;
 }
 
+/** 本节点任务表单 schema（未配置时按节点名称推断申请/审批默认） */
+export function resolveNodeFormSchema(node: ParsedNode | undefined): FormJsonSchema {
+	const custom = getNodeFormSchema(node);
+	if (custom) return custom;
+	const label = getNodeLabel(node);
+	if (/审批|审核|办理/.test(label)) return DEFAULT_APPROVE_FORM_SCHEMA;
+	return DEFAULT_LEAVE_FORM_SCHEMA;
+}
+
+/** @deprecated 使用 resolveNodeFormSchema */
 export function resolveFormSchema(node: ParsedNode | undefined): FormJsonSchema {
-	return getNodeFormSchema(node) ?? DEFAULT_LEAVE_FORM_SCHEMA;
+	return resolveNodeFormSchema(node);
+}
+
+/** 按 schema 字段从流程变量中取出展示/编辑用的子集 */
+export function pickVariablesForSchema(
+	schema: FormJsonSchema,
+	variables: Record<string, unknown>
+): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	for (const key of Object.keys(schema.properties ?? {})) {
+		if (Object.prototype.hasOwnProperty.call(variables, key)) {
+			out[key] = variables[key];
+		}
+	}
+	return out;
 }
 
 export function getStartNode(graph: ParsedGraph): ParsedNode | undefined {
