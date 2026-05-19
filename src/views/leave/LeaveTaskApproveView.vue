@@ -4,7 +4,18 @@ import { useProcessApprove } from '@/composables/workflow/useProcessApprove';
 
 defineOptions({ name: 'LeaveTaskApproveView' });
 
-const { loading, task, trace, comment, displaySchema, decide, goTodos } = useProcessApprove();
+const {
+	loading,
+	task,
+	trace,
+	applySchema,
+	taskSchema,
+	taskForm,
+	applyVariables,
+	taskSectionTitle,
+	decide,
+	goTodos,
+} = useProcessApprove();
 </script>
 
 <template>
@@ -18,17 +29,22 @@ const { loading, task, trace, comment, displaySchema, decide, goTodos } = usePro
 				<el-descriptions-item label="实例 ID" :span="2">{{ task.procInstId }}</el-descriptions-item>
 			</el-descriptions>
 
-			<h3 class="section-title">流程数据</h3>
+			<h3 class="section-title">申请内容</h3>
 			<DynamicFormRenderer
-				v-if="displaySchema"
-				:key="`${task.taskId}-readonly`"
-				:model-value="task.variables"
-				:schema="displaySchema"
+				v-if="applySchema"
+				:key="`${task.taskId}-apply`"
+				:model-value="applyVariables"
+				:schema="applySchema"
 				readonly
 			/>
 
-			<h3 class="section-title mt-6">办理意见</h3>
-			<el-input v-model="comment" type="textarea" :rows="3" placeholder="选填" />
+			<h3 class="section-title mt-6">{{ taskSectionTitle }}</h3>
+			<DynamicFormRenderer
+				v-if="taskSchema"
+				:key="`${task.taskId}-task`"
+				v-model="taskForm"
+				:schema="taskSchema"
+			/>
 
 			<div class="actions">
 				<el-button type="success" :loading="loading" @click="decide(true)">通过</el-button>

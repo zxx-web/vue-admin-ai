@@ -17,7 +17,7 @@ import {
 	getNodeById,
 	parseLogicFlowGraph,
 	resolveApplyFormSchema,
-	resolveFormSchema,
+	resolveNodeFormSchema,
 } from '@/utils/processEngine';
 
 /** 流程相关 UI 状态：待办、流程定义（设计器 / 发起 / 审批页共享） */
@@ -90,42 +90,43 @@ export const useWorkflowStore = defineStore('workflow', () => {
 		await refreshProcessList();
 	}
 
-	/** 从已加载的定义中读取指定节点的表单 schema */
-	function schemaFromLoadedDefinition(processKey: string, nodeId: string): FormJsonSchema | null {
-		if (currentDefinition.value?.key !== processKey) return null;
-		const graph = parseLogicFlowGraph(currentDefinition.value.logicflowData);
-		if (!graph) return null;
-		return resolveFormSchema(getNodeById(graph, nodeId));
-	}
-
-	/** 发起页预览用流程变量（含 starterRole） */
-	function applyPreviewVariables(): Record<string, unknown> {
-		const starterUsername = localStorage.getItem('auth_username') ?? 'guest';
+	/** 按发起人解析流程变量（含 starterRole），用于走网关找申请节点 */
+	function variablesForStarter(starterUsername: string): Record<string, unknown> {
 		return buildProcessVariables(starterUsername, {});
 	}
 
-	/** 发起页：按当前登录人解析网关后，首个用户任务的表单 schema */
-	async function loadApplyFormSchema(processKey: string): Promise<FormJsonSchema> {
+	/**
+	 * 加载「填写申请」节点的表单 schema（路径上首个用户任务）。
+	 * @param starterUsername 不传则用当前登录人（发起页预览）；审批页应传实例发起人
+	 */
+	async function loadApplyFormSchema(
+		processKey: string,
+		starterUsername?: string
+	): Promise<FormJsonSchema> {
+		const starter = starterUsername ?? localStorage.getItem('auth_username') ?? 'guest';
+		const vars = variablesForStarter(starter);
 		if (currentDefinition.value?.key !== processKey) {
 			const def = await loadProcessDefinition(processKey);
-			if (!def) return resolveApplyFormSchema(undefined, applyPreviewVariables());
+			if (!def) return resolveApplyFormSchema(undefined, vars);
 		}
-		return resolveApplyFormSchema(currentDefinition.value?.logicflowData, applyPreviewVariables());
+		return resolveApplyFormSchema(currentDefinition.value?.logicflowData, vars);
 	}
 
-	/** 审批页：申请内容 schema + 当前节点 schema */
+	/** 审批页：申请内容 schema（按发起人路径）+ 当前节点办理表单 schema */
 	async function loadTaskFormSchemas(
 		processKey: string,
-		nodeId: string
+		nodeId: string,
+		starterUsername: string
 	): Promise<{ applySchema: FormJsonSchema; taskSchema: FormJsonSchema }> {
 		if (currentDefinition.value?.key !== processKey) {
 			await loadProcessDefinition(processKey);
 		}
-		const applySchema = resolveApplyFormSchema(
-			currentDefinition.value?.logicflowData,
-			applyPreviewVariables()
-		);
-		const taskSchema = schemaFromLoadedDefinition(processKey, nodeId) ?? applySchema;
+		const vars = variablesForStarter(starterUsername);
+		const logicflow = currentDefinition.value?.logicflowData;
+		const applySchema = resolveApplyFormSchema(logicflow, vars);
+		const graph = parseLogicFlowGraph(logicflow);
+		const node = graph ? getNodeById(graph, nodeId) : undefined;
+		const taskSchema = resolveNodeFormSchema(node);
 		return { applySchema, taskSchema };
 	}
 
