@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 import type { ElTree } from 'element-plus';
 import { ElMessage } from 'element-plus';
 import { ROLE_LABELS, ROLES, type AppRole } from '@/constants/role';
@@ -11,55 +10,42 @@ import {
 	normalizeTreeCheckedToStorage,
 	storageKeysToTreeCheckedKeys,
 } from '@/utils/routePermissionTree';
-import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
 import { remountBusinessRoutes } from '@/router';
+import {
+	fetchAdminRouteConfig,
+	resetAdminRouteConfig,
+	saveAdminRouteConfig,
+} from '@/api/permission';
 import { useAuthStore } from '@/stores/auth';
-import { usePermissionConfigStore } from '@/stores/permissionConfig';
+import { usePermissionStore } from '@/stores/permission';
 
 defineOptions({ name: 'SystemPermissionView' });
 
-const route = useRoute();
-const router = useRouter();
 const auth = useAuthStore();
-const permCfg = usePermissionConfigStore();
+const perm = usePermissionStore();
 
 const treeRef = ref<InstanceType<typeof ElTree>>();
 const selectedRole = ref<AppRole>(ROLES.ADMIN);
 const treeData = buildRoutePermissionTree(asyncChildRoutes);
-
 const draft = ref<RoleRouteNameConfig>({
 	[ROLES.ADMIN]: [],
 	[ROLES.MANAGER]: [],
 	[ROLES.OPERATOR]: [],
 });
 
-function pullDraft() {
-	permCfg.loadFromStorage();
-	draft.value = {
-		[ROLES.ADMIN]: [...permCfg.config[ROLES.ADMIN]],
-		[ROLES.MANAGER]: [...permCfg.config[ROLES.MANAGER]],
-		[ROLES.OPERATOR]: [...permCfg.config[ROLES.OPERATOR]],
-	};
-}
-
-function syncTreeFromDraft() {
+function syncTree() {
 	nextTick(() => {
 		const keys = storageKeysToTreeCheckedKeys(draft.value[selectedRole.value]);
 		treeRef.value?.setCheckedKeys(keys, false);
 	});
 }
 
-onMounted(() => {
-	pullDraft();
-	syncTreeFromDraft();
-});
-
-watch(selectedRole, (_newRole, oldRole) => {
-	if (oldRole && treeRef.value) {
+watch(selectedRole, (_n, old) => {
+	if (old && treeRef.value) {
 		const checked = (treeRef.value.getCheckedKeys(false) as string[]) ?? [];
-		draft.value[oldRole] = normalizeTreeCheckedToStorage(checked);
+		draft.value[old] = normalizeTreeCheckedToStorage(checked);
 	}
-	syncTreeFromDraft();
+	syncTree();
 });
 
 function onTreeCheck() {
@@ -67,27 +53,29 @@ function onTreeCheck() {
 	draft.value[selectedRole.value] = normalizeTreeCheckedToStorage(checked);
 }
 
-async function onSave() {
-	permCfg.setAllowedNames(ROLES.ADMIN, draft.value[ROLES.ADMIN]);
-	permCfg.setAllowedNames(ROLES.MANAGER, draft.value[ROLES.MANAGER]);
-	permCfg.setAllowedNames(ROLES.OPERATOR, draft.value[ROLES.OPERATOR]);
-	permCfg.persist();
-	await remountBusinessRoutes();
-	if (
-		auth.role &&
-		!permCfg.isRouteAllowed(auth.role, 'system-permission') &&
-		route.path.startsWith('/system')
-	) {
-		await router.replace({ name: getFirstAllowedRouteName(auth.role) });
+async function applyAndRemount() {
+	if (auth.role) {
+		perm.reset();
+		await perm.load(auth.role);
 	}
+	await remountBusinessRoutes();
+}
+
+onMounted(async () => {
+	draft.value = await fetchAdminRouteConfig();
+	syncTree();
+});
+
+async function onSave() {
+	await saveAdminRouteConfig(draft.value);
+	await applyAndRemount();
 	ElMessage.success('已保存');
 }
 
 async function onResetDefault() {
-	permCfg.resetToDefaults();
-	pullDraft();
-	syncTreeFromDraft();
-	await remountBusinessRoutes();
+	draft.value = await resetAdminRouteConfig();
+	syncTree();
+	await applyAndRemount();
 	ElMessage.info('已恢复默认');
 }
 </script>
@@ -113,7 +101,7 @@ async function onResetDefault() {
 					<el-option :label="ROLE_LABELS[ROLES.OPERATOR]" :value="ROLES.OPERATOR" />
 				</el-select>
 				<span class="toolbar-hint">
-					勾选父路由即全选子路由；取消父路由即清空子路由。任一侧仍勾选子路由时父路由为半选；子路由全部取消后父路由也不选中。未勾选的路由不可访问。
+					勾选父路由即全选子路由；取消父路由即清空子路由。未勾选的路由不可访问。
 				</span>
 			</div>
 

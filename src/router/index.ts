@@ -1,29 +1,39 @@
 import { getActivePinia } from 'pinia';
 import { createRouter, createWebHistory } from 'vue-router';
-import type { RouteRecordRaw } from 'vue-router';
+import type { RouteLocationNormalized, RouteRecordRaw } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { asyncChildRoutes } from '@/router/asyncRoutes';
 import {
 	loginRoute,
 	notFoundRoute,
 	rootPlaceholderRoute,
 	ROUTE_NAME,
 } from '@/router/constantRoutes';
-import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
-import { filterRoutesByAllowedNames } from '@/router/routeHelpers';
 import { useAuthStore } from '@/stores/auth';
-import { usePermissionConfigStore } from '@/stores/permissionConfig';
 import { usePermissionStore } from '@/stores/permission';
-import type { AppRole } from '@/constants/role';
+const SKIP_RETRY_NAMES = new Set<string>([
+	ROUTE_NAME.NOT_FOUND,
+	ROUTE_NAME.ROOT_PLACEHOLDER,
+	ROUTE_NAME.LOGIN,
+]);
 
-function createAdminRootRoute(children: RouteRecordRaw[], role: AppRole): RouteRecordRaw {
+const router = createRouter({
+	history: createWebHistory(import.meta.env.BASE_URL),
+	routes: [loginRoute, rootPlaceholderRoute, notFoundRoute],
+});
+
+function removeIfExists(name: string) {
+	if (router.hasRoute(name)) router.removeRoute(name);
+}
+
+function createAdminRoot(children: RouteRecordRaw[]): RouteRecordRaw {
+	const perm = usePermissionStore();
 	return {
 		path: '/',
 		name: ROUTE_NAME.ADMIN_ROOT,
 		component: () => import('@/layouts/AdminLayout.vue'),
 		redirect: () => {
 			const first = children[0];
-			if (!first?.path) return { name: getFirstAllowedRouteName(role) };
+			if (!first?.path) return { name: perm.firstRouteName() };
 			const p = first.path;
 			return { path: p.startsWith('/') ? p : `/${p}` };
 		},
@@ -32,109 +42,90 @@ function createAdminRootRoute(children: RouteRecordRaw[], role: AppRole): RouteR
 	};
 }
 
-const router = createRouter({
-	history: createWebHistory(import.meta.env.BASE_URL),
-	routes: [loginRoute, rootPlaceholderRoute, notFoundRoute],
-});
-
-function mountBusinessRoutes(role: AppRole) {
-	const permCfg = usePermissionConfigStore();
-	permCfg.loadFromStorage();
-	const filtered = filterRoutesByAllowedNames(
-		asyncChildRoutes,
-		permCfg.expandedAllowedSetForRole(role)
-	);
-	const permission = usePermissionStore();
-	permission.setMenuRoutes(filtered);
-
-	if (router.hasRoute(ROUTE_NAME.ROOT_PLACEHOLDER)) {
-		router.removeRoute(ROUTE_NAME.ROOT_PLACEHOLDER);
-	}
-	if (router.hasRoute(ROUTE_NAME.NOT_FOUND)) {
-		router.removeRoute(ROUTE_NAME.NOT_FOUND);
-	}
-	if (router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
-		router.removeRoute(ROUTE_NAME.ADMIN_ROOT);
-	}
-
-	router.addRoute(createAdminRootRoute(filtered, role));
+function mountRoutes() {
+	const perm = usePermissionStore();
+	const children = perm.menuRoutes;
+	removeIfExists(ROUTE_NAME.ROOT_PLACEHOLDER);
+	removeIfExists(ROUTE_NAME.NOT_FOUND);
+	removeIfExists(ROUTE_NAME.ADMIN_ROOT);
+	router.addRoute(createAdminRoot(children));
 	router.addRoute(notFoundRoute);
 }
 
-/** 在 `router.replace({ name: '…' })` 之前调用：避免 resolve 阶段尚未 addRoute 而出现 “No match for dashboard” */
-export function ensureBusinessRoutesMounted(role: AppRole): void {
-	if (!router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
-		mountBusinessRoutes(role);
+function retryAfterMount(to: RouteLocationNormalized) {
+	const perm = usePermissionStore();
+	const name = typeof to.name === 'string' ? to.name : '';
+	if (name && !SKIP_RETRY_NAMES.has(name) && router.hasRoute(name)) {
+		return { name, params: to.params, query: to.query, hash: to.hash, replace: true };
 	}
+	if (to.path && to.path !== '/' && to.path !== '/login') {
+		return { path: to.path, query: to.query, hash: to.hash, replace: true };
+	}
+	return { name: perm.firstRouteName(), query: to.query, hash: to.hash, replace: true };
 }
 
 export function resetDynamicRoutes() {
-	if (router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
-		router.removeRoute(ROUTE_NAME.ADMIN_ROOT);
-	}
-	if (router.hasRoute(ROUTE_NAME.NOT_FOUND)) {
-		router.removeRoute(ROUTE_NAME.NOT_FOUND);
-	}
+	removeIfExists(ROUTE_NAME.ADMIN_ROOT);
+	removeIfExists(ROUTE_NAME.NOT_FOUND);
 	if (!router.hasRoute(ROUTE_NAME.ROOT_PLACEHOLDER)) {
 		router.addRoute(rootPlaceholderRoute);
 	}
 	router.addRoute(notFoundRoute);
-	if (getActivePinia()) {
-		usePermissionStore().reset();
-	}
+	if (getActivePinia()) usePermissionStore().reset();
 }
 
-/** 权限配置变更后重新注册动态路由并刷新当前页匹配 */
-export function remountBusinessRoutes() {
+/** 用 store 里已有的权限重新 addRoute；调用前须已 perm.load。一次 replace：能留当前页则留，否则直接去首页 */
+export async function remountBusinessRoutes() {
 	const auth = useAuthStore();
 	if (!auth.isLoggedIn || !auth.role || !router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) return;
+	const perm = usePermissionStore();
 	const loc = router.currentRoute.value;
-	mountBusinessRoutes(auth.role);
-	return router.replace({ path: loc.path, query: { ...loc.query }, hash: loc.hash });
+	mountRoutes();
+	const name = typeof loc.name === 'string' ? loc.name : '';
+	const target =
+		name && !perm.isRouteAllowed(name)
+			? { name: perm.firstRouteName() }
+			: { path: loc.path, query: { ...loc.query }, hash: loc.hash };
+	return router.replace(target);
 }
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
 	const auth = useAuthStore();
 	auth.syncFromStorage();
 
-	if (auth.isLoggedIn && auth.role && !router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
-		const role = auth.role;
-		mountBusinessRoutes(role);
-		// 子路由刚 addRoute 后，用「仅 path」重试可能仍是 `/` 或误匹配 NotFound，导致登录后进不去后台
-		const n = typeof to.name === 'string' ? to.name : '';
-		const bogus =
-			n === ROUTE_NAME.NOT_FOUND || n === ROUTE_NAME.ROOT_PLACEHOLDER || n === ROUTE_NAME.LOGIN;
-		if (n && !bogus && router.hasRoute(n)) {
-			return { name: n, params: to.params, query: to.query, hash: to.hash, replace: true };
+	if (!auth.isLoggedIn) {
+		if (to.name === ROUTE_NAME.NOT_FOUND) {
+			return { name: ROUTE_NAME.LOGIN, query: { redirect: to.fullPath } };
 		}
-		if (to.path && to.path !== '/' && to.path !== '/login') {
-			return { path: to.path, query: to.query, hash: to.hash, replace: true };
+		if (to.meta.requiresAuth) {
+			return { name: ROUTE_NAME.LOGIN, query: { redirect: to.fullPath } };
 		}
-		return {
-			name: getFirstAllowedRouteName(role),
-			query: to.query,
-			hash: to.hash,
-			replace: true,
-		};
+		return true;
 	}
 
-	if (to.name === ROUTE_NAME.NOT_FOUND && !auth.isLoggedIn) {
-		return { name: ROUTE_NAME.LOGIN, query: { redirect: to.fullPath } };
+	if (!auth.role) {
+		auth.clearSession();
+		return { name: ROUTE_NAME.LOGIN };
 	}
 
-	if (to.meta.requiresAuth && !auth.isLoggedIn) {
-		return { name: ROUTE_NAME.LOGIN, query: { redirect: to.fullPath } };
+	const perm = usePermissionStore();
+	try {
+		await perm.load(auth.role);
+	} catch {
+		ElMessage.error('权限加载失败');
+		return false;
 	}
 
-	if (to.meta.guestOnly && auth.isLoggedIn && auth.role) {
-		return { name: getFirstAllowedRouteName(auth.role) };
+	if (!router.hasRoute(ROUTE_NAME.ADMIN_ROOT)) {
+		mountRoutes();
+		return retryAfterMount(to);
 	}
 
-	const permCfg = usePermissionConfigStore();
-	permCfg.loadFromStorage();
-	if (auth.isLoggedIn && auth.role && !permCfg.isRouteAllowed(auth.role, to.name)) {
-		ElMessage.warning('当前账号无权访问该页面');
-		return { name: getFirstAllowedRouteName(auth.role) };
+	if (to.meta.guestOnly) return { name: perm.firstRouteName() };
+
+	if (!perm.isRouteAllowed(to.name)) {
+		ElMessage.warning('无权访问该页面');
+		return { name: perm.firstRouteName() };
 	}
 
 	return true;

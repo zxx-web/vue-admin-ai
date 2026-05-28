@@ -15,7 +15,6 @@ import {
 } from '@element-plus/icons-vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { ROLE_LABELS } from '@/constants/role';
-import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
 import { routesToMenuTree, type MenuNode } from '@/router/routeHelpers';
 import { resetDynamicRoutes } from '@/router';
 import { useAppStore } from '@/stores/app';
@@ -98,7 +97,7 @@ function closeTab(path: string) {
 	if (!closingCurrent) return;
 	const next = list[idx - 1] ?? list[idx + 1];
 	if (next) router.push(next.fullPath);
-	else router.push({ name: getFirstAllowedRouteName(auth.role) });
+	else router.push({ name: permission.firstRouteName() });
 }
 
 /** 在横向导航上：鼠标滚轮上下 / 触控板左右滑动 → 左右滚动标签区域 */

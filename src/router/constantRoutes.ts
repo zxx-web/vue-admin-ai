@@ -14,10 +14,12 @@ export const loginRoute: RouteRecordRaw = {
 	meta: { guestOnly: true },
 };
 
+/** 占位根路由：勿写 redirect 到 /login，否则登录后 replace('/') 会与当前 /login 重复导航，beforeEach 不再执行 */
 export const rootPlaceholderRoute: RouteRecordRaw = {
 	path: '/',
 	name: ROUTE_NAME.ROOT_PLACEHOLDER,
-	redirect: '/login',
+	component: () => import('@/layouts/ParentView.vue'),
+	meta: { requiresAuth: true },
 };
 
 export const notFoundRoute: RouteRecordRaw = {

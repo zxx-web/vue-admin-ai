@@ -1,25 +1,16 @@
 import { getActivePinia } from 'pinia';
-import type { RouteLocationGeneric, RouteLocationNormalizedLoaded } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { usePermissionConfigStore } from '@/stores/permissionConfig';
+import { usePermissionStore } from '@/stores/permission';
 
-const SCROLL_LEAF_ORDER: string[] = Array.from({ length: 8 }, (_, i) => `scroll-test-p${i + 1}`);
+const SCROLL_LEAVES = Array.from({ length: 8 }, (_, i) => `scroll-test-p${i + 1}`);
 
-/** 进入 /scroll-test 时跳到当前角色允许的第一个子页 */
-export function scrollTestRedirect(to: RouteLocationGeneric, from: RouteLocationNormalizedLoaded) {
-	void to;
-	void from;
-	const pinia = getActivePinia();
-	if (!pinia) return { name: 'scroll-test-p1' as const };
-	const auth = useAuthStore();
-	const perm = usePermissionConfigStore();
-	perm.loadFromStorage();
-	if (!auth.role) return { name: 'scroll-test-p1' as const };
-	const allowed = perm.allowedSetForRole(auth.role);
-	if (allowed.has('scroll-test')) return { name: 'scroll-test-p1' as const };
-	for (const n of SCROLL_LEAF_ORDER) {
-		if (allowed.has(n)) return { name: n };
+export function scrollTestRedirect() {
+	if (!getActivePinia()) return { name: 'scroll-test-p1' as const };
+	const perm = usePermissionStore();
+	if (!useAuthStore().role) return { name: 'scroll-test-p1' as const };
+	if (perm.allowed.has('scroll-test')) return { name: 'scroll-test-p1' as const };
+	for (const n of SCROLL_LEAVES) {
+		if (perm.allowed.has(n)) return { name: n };
 	}
-	// 避免引用 getFirstAllowedRouteName → permissionConfig → asyncRoutes 形成循环依赖
 	return { name: 'dashboard' as const };
 }

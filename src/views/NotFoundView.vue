@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { getFirstAllowedRouteName } from '@/router/firstAllowedRoute';
-import { useAuthStore } from '@/stores/auth';
+import { usePermissionStore } from '@/stores/permission';
 
 const router = useRouter();
-const auth = useAuthStore();
+const perm = usePermissionStore();
 
 function goHome() {
-	router.push({ name: getFirstAllowedRouteName(auth.role) });
+	router.push({ name: perm.firstRouteName() });
 }
 </script>
 
